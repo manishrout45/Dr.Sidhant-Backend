@@ -15,6 +15,11 @@ app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
+/* -------------------- HEALTH CHECK (RENDER) -------------------- */
+app.get("/healthz", (req, res) => {
+  res.status(200).json({ status: "OK" });
+});
+
 /* -------------------- MONGODB CONNECTION -------------------- */
 mongoose
   .connect(process.env.MONGO_URI)
@@ -83,7 +88,7 @@ app.post("/admin/login", async (req, res) => {
     }
 
     res.status(401).json({ success: false });
-  } catch {
+  } catch (err) {
     res.status(500).json({ success: false });
   }
 });
@@ -115,11 +120,11 @@ app.post("/blogs", upload.single("image"), async (req, res) => {
       description: req.body.description,
       category: req.body.category,
       video: req.body.video,
-      image: req.file ? req.file.path : "", // ✅ Cloudinary URL
+      image: req.file ? req.file.path : "", // Cloudinary URL
     });
 
     res.json(blog);
-  } catch {
+  } catch (err) {
     res.status(500).json({ error: "Failed to add blog" });
   }
 });
@@ -140,7 +145,7 @@ app.put("/blogs/:id", upload.single("image"), async (req, res) => {
     };
 
     if (req.file) {
-      updateData.image = req.file.path; // ✅ Cloudinary URL
+      updateData.image = req.file.path;
     }
 
     const blog = await Blog.findByIdAndUpdate(
@@ -152,7 +157,7 @@ app.put("/blogs/:id", upload.single("image"), async (req, res) => {
     if (!blog) return res.status(404).json({ error: "Blog not found" });
 
     res.json(blog);
-  } catch {
+  } catch (err) {
     res.status(500).json({ error: "Failed to update blog" });
   }
 });
@@ -171,6 +176,7 @@ app.delete("/blogs/:id", async (req, res) => {
 
 /* -------------------- SERVER -------------------- */
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 Backend running on http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Backend running on port ${PORT}`);
 });
+
