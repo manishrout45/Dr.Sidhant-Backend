@@ -40,7 +40,7 @@ const blogSchema = new mongoose.Schema(
 );
 
 const adminSchema = new mongoose.Schema({
-  username: String,
+  username: { type: String, unique: true },
   password: String,
 });
 
@@ -58,7 +58,7 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter(req, file, cb) {
     if (!file.mimetype.startsWith("image/")) {
       return cb(new Error("Only image files allowed"));
@@ -76,7 +76,7 @@ app.post("/admin/login", async (req, res) => {
     if (!admin) {
       admin = await Admin.create({
         username: "admin",
-        password: "admin123",
+        password: "Admin@123",
       });
     }
 
@@ -88,8 +88,54 @@ app.post("/admin/login", async (req, res) => {
     }
 
     res.status(401).json({ success: false });
-  } catch (err) {
+  } catch {
     res.status(500).json({ success: false });
+  }
+});
+
+/* -------------------- CREATE ADMIN -------------------- */
+app.post("/admin", async (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ error: "Username and password required" });
+  }
+
+  try {
+    const exists = await Admin.findOne({ username });
+    if (exists) {
+      return res.status(409).json({ error: "Admin already exists" });
+    }
+
+    const admin = await Admin.create({ username, password });
+    res.json({ success: true, admin: { _id: admin._id, username } });
+  } catch {
+    res.status(500).json({ error: "Failed to create admin" });
+  }
+});
+
+/* -------------------- GET ADMINS -------------------- */
+app.get("/admin", async (req, res) => {
+  const admins = await Admin.find({}, "-password");
+  res.json(admins);
+});
+
+/* -------------------- DELETE ADMIN -------------------- */
+app.delete("/admin/:id", async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: "Invalid admin ID" });
+    }
+
+    const deletedAdmin = await Admin.findByIdAndDelete(req.params.id);
+
+    if (!deletedAdmin) {
+      return res.status(404).json({ error: "Admin not found" });
+    }
+
+    res.json({ success: true, message: "Admin deleted successfully" });
+  } catch {
+    res.status(500).json({ error: "Failed to delete admin" });
   }
 });
 
@@ -120,11 +166,11 @@ app.post("/blogs", upload.single("image"), async (req, res) => {
       description: req.body.description,
       category: req.body.category,
       video: req.body.video,
-      image: req.file ? req.file.path : "", // Cloudinary URL
+      image: req.file ? req.file.path : "",
     });
 
     res.json(blog);
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Failed to add blog" });
   }
 });
@@ -144,20 +190,16 @@ app.put("/blogs/:id", upload.single("image"), async (req, res) => {
       video: req.body.video,
     };
 
-    if (req.file) {
-      updateData.image = req.file.path;
-    }
+    if (req.file) updateData.image = req.file.path;
 
-    const blog = await Blog.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true }
-    );
+    const blog = await Blog.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+    });
 
     if (!blog) return res.status(404).json({ error: "Blog not found" });
 
     res.json(blog);
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Failed to update blog" });
   }
 });
@@ -179,4 +221,3 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Backend running on port ${PORT}`);
 });
-
