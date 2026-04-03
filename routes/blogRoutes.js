@@ -1,22 +1,31 @@
 import express from "express";
 import multer from "multer";
-import { CloudinaryStorage } from "multer-storage-cloudinary";
 import cloudinary from "../config/cloudinary.js";
 import Blog from "../models/Blog.js";
 
 const router = express.Router();
 
-/* ✅ CLOUDINARY STORAGE */
-const storage = new CloudinaryStorage({
-  cloudinary,
-  params: {
-    folder: "blogs",
-    allowed_formats: ["jpg", "jpeg", "png", "webp"],
-  },
+/* ✅ MEMORY STORAGE */
+const storage = multer.memoryStorage();
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
 });
 
-/* ✅ MULTER */
-const upload = multer({ storage });
+/* ✅ CLOUDINARY UPLOAD FUNCTION */
+const uploadToCloudinary = (fileBuffer) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: "blogs" },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      }
+    );
+    stream.end(fileBuffer);
+  });
+};
 
 /* ---------------- CREATE BLOG ---------------- */
 router.post("/", upload.single("image"), async (req, res) => {
@@ -24,13 +33,20 @@ router.post("/", upload.single("image"), async (req, res) => {
     console.log("BODY:", req.body);
     console.log("FILE:", req.file);
 
+    let imageUrl = "";
+
+    if (req.file) {
+      const result = await uploadToCloudinary(req.file.buffer);
+      imageUrl = result.secure_url;
+    }
+
     const blog = await Blog.create({
       title: req.body.title,
       description: req.body.description,
       content: req.body.content,
       category: req.body.category,
       video: req.body.video,
-      image: req.file ? req.file.path : "",
+      image: imageUrl,
     });
 
     res.json(blog);
@@ -52,7 +68,8 @@ router.put("/:id", upload.single("image"), async (req, res) => {
     const updateData = { ...req.body };
 
     if (req.file) {
-      updateData.image = req.file.path;
+      const result = await uploadToCloudinary(req.file.buffer);
+      updateData.image = result.secure_url;
     }
 
     const blog = await Blog.findByIdAndUpdate(
