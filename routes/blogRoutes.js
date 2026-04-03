@@ -1,11 +1,12 @@
 import express from "express";
 import multer from "multer";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
 import cloudinary from "../config/cloudinary.js";
 import Blog from "../models/Blog.js";
 
 const router = express.Router();
 
-// 🔹 Multer + Cloudinary config
+/* ✅ CLOUDINARY STORAGE */
 const storage = new CloudinaryStorage({
   cloudinary,
   params: {
@@ -14,56 +15,44 @@ const storage = new CloudinaryStorage({
   },
 });
 
-const upload = multer({
-  storage,
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
-  fileFilter(req, file, cb) {
-    if (!file.mimetype.startsWith("image/")) {
-      cb(new Error("Only images allowed"));
-    }
-    cb(null, true);
-  },
-});
+/* ✅ MULTER */
+const upload = multer({ storage });
 
-// ✅ CREATE BLOG
+/* ---------------- CREATE BLOG ---------------- */
 router.post("/", upload.single("image"), async (req, res) => {
   try {
+    console.log("BODY:", req.body);
+    console.log("FILE:", req.file);
+
     const blog = await Blog.create({
       title: req.body.title,
-      category: req.body.category,
       description: req.body.description,
       content: req.body.content,
+      category: req.body.category,
       video: req.body.video,
-      image: req.file ? req.file.path : "", // 🔥 Cloudinary URL
+      image: req.file ? req.file.path : "",
     });
 
     res.json(blog);
   } catch (err) {
+    console.error("CREATE ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// ✅ GET BLOGS
+/* ---------------- GET BLOGS ---------------- */
 router.get("/", async (req, res) => {
   const blogs = await Blog.find().sort({ createdAt: -1 });
   res.json(blogs);
 });
 
-// ✅ DELETE BLOG
-router.delete("/:id", async (req, res) => {
-  await Blog.findByIdAndDelete(req.params.id);
-  res.json({ success: true });
-});
-
-// ✅ UPDATE BLOG
+/* ---------------- UPDATE BLOG ---------------- */
 router.put("/:id", upload.single("image"), async (req, res) => {
   try {
-    const updateData = {
-      ...req.body,
-    };
+    const updateData = { ...req.body };
 
     if (req.file) {
-      updateData.image = req.file.path; // 🔥 Cloudinary URL
+      updateData.image = req.file.path;
     }
 
     const blog = await Blog.findByIdAndUpdate(
@@ -74,8 +63,15 @@ router.put("/:id", upload.single("image"), async (req, res) => {
 
     res.json(blog);
   } catch (err) {
+    console.error("UPDATE ERROR:", err);
     res.status(500).json({ error: err.message });
   }
+});
+
+/* ---------------- DELETE BLOG ---------------- */
+router.delete("/:id", async (req, res) => {
+  await Blog.findByIdAndDelete(req.params.id);
+  res.json({ success: true });
 });
 
 export default router;
