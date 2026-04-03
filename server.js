@@ -23,7 +23,12 @@ mongoose
 /* ROUTES */
 app.use("/blogs", blogRoutes);
 
-/* HEALTH */
+/* ✅ ADD THIS (VERY IMPORTANT FOR RENDER) */
+app.get("/healthz", (req, res) => {
+  res.status(200).send("OK");
+});
+
+/* ROOT */
 app.get("/", (req, res) => {
   res.send("API Running");
 });
