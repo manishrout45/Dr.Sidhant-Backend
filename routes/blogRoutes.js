@@ -27,21 +27,36 @@ const upload = multer({
 });
 
 // ✅ CREATE BLOG
-router.post("/", upload.single("image"), async (req, res) => {
-  try {
-    const blog = await Blog.create({
-      title: req.body.title,
-      category: req.body.category,
-      description: req.body.description,
-      content: req.body.content,
-      video: req.body.video,
-      image: req.file ? req.file.path : "", // 🔥 Cloudinary URL
-    });
+router.post("/", (req, res) => {
+  upload.single("image")(req, res, async (err) => {
+    if (err) {
+      console.error("❌ MULTER ERROR:", err);
+      return res.status(400).json({ error: err.message });
+    }
 
-    res.json(blog);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+      console.log("BODY:", req.body);
+      console.log("FILE:", req.file);
+
+      if (!req.file) {
+        return res.status(400).json({ error: "Image not uploaded" });
+      }
+
+      const blog = await Blog.create({
+        title: req.body.title,
+        category: req.body.category,
+        description: req.body.description,
+        content: req.body.content,
+        video: req.body.video,
+        image: req.file.path,
+      });
+
+      res.json(blog);
+    } catch (err) {
+      console.error("❌ BACKEND ERROR:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
 });
 
 // ✅ GET BLOGS
