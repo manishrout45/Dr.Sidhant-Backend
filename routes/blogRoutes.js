@@ -29,6 +29,8 @@ const upload = multer({
 // ✅ CREATE BLOG
 router.post("/", (req, res) => {
   upload.single("image")(req, res, async (err) => {
+
+    // ✅ HANDLE MULTER ERROR FIRST
     if (err) {
       console.error("❌ MULTER ERROR:", err);
       return res.status(400).json({ error: err.message });
@@ -52,13 +54,13 @@ router.post("/", (req, res) => {
       });
 
       res.json(blog);
+
     } catch (err) {
       console.error("❌ BACKEND ERROR:", err);
       res.status(500).json({ error: err.message });
     }
   });
 });
-
 // ✅ GET BLOGS
 router.get("/", async (req, res) => {
   const blogs = await Blog.find().sort({ createdAt: -1 });
